@@ -374,6 +374,69 @@ test('restorePackagedRuntimeStateFromBackup keeps backup when copy fails', (t) =
   assert.equal(restoreResult.failed[0].includes('target locked'), true);
 });
 
+test('restorePackagedRuntimeStateFromBackup removes restored files from pending manifest', (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dsa-desktop-partial-restore-'));
+  const appDir = path.join(tempRoot, 'app');
+  const userDataDir = path.join(tempRoot, 'userData');
+  const backupRoot = path.join(userDataDir, '.dsa-desktop-update-backup');
+  const backupEnvPath = path.join(backupRoot, '.env');
+  const backupDbPath = path.join(backupRoot, 'data', 'stock_analysis.db');
+  const targetEnvPath = path.join(appDir, '.env');
+  const manifestPath = path.join(backupRoot, 'runtime-state.json');
+  const dbRelativePath = path.join('data', 'stock_analysis.db');
+
+  fs.mkdirSync(path.dirname(backupDbPath), { recursive: true });
+  fs.mkdirSync(appDir, { recursive: true });
+  fs.writeFileSync(path.join(appDir, 'Uninstall Daily Stock Analysis.exe'), '');
+  fs.writeFileSync(backupEnvPath, 'backup-env\n', 'utf-8');
+  fs.writeFileSync(backupDbPath, 'backup-db');
+  fs.writeFileSync(targetEnvPath, 'current-env\n', 'utf-8');
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({ files: ['.env', dbRelativePath] }),
+    'utf-8'
+  );
+
+  const mainModule = loadMainModule(t, {
+    platform: 'win32',
+    app: {
+      isPackaged: true,
+      getPath: (name) => {
+        if (name === 'exe') {
+          return path.join(appDir, 'Daily Stock Analysis.exe');
+        }
+        return userDataDir;
+      },
+    },
+  });
+  const originalCopyFileSync = fs.copyFileSync;
+
+  fs.copyFileSync = (source, target) => {
+    if (source === backupDbPath) {
+      throw new Error('target locked');
+    }
+    return originalCopyFileSync(source, target);
+  };
+
+  t.after(() => {
+    fs.copyFileSync = originalCopyFileSync;
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  const firstRestore = mainModule.restorePackagedRuntimeStateFromBackup();
+  assert.deepEqual(firstRestore.restored, ['.env']);
+  assert.equal(firstRestore.failed.length, 1);
+  assert.equal(fs.readFileSync(targetEnvPath, 'utf-8'), 'backup-env\n');
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf-8')).files, [dbRelativePath]);
+
+  fs.writeFileSync(targetEnvPath, 'user-change-after-partial-failure\n', 'utf-8');
+  const secondRestore = mainModule.restorePackagedRuntimeStateFromBackup();
+  assert.deepEqual(secondRestore.restored, []);
+  assert.equal(secondRestore.failed.length, 1);
+  assert.equal(fs.readFileSync(targetEnvPath, 'utf-8'), 'user-change-after-partial-failure\n');
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf-8')).files, [dbRelativePath]);
+});
+
 test('stopBackend waits for backend process exit', async (t) => {
   const mainModule = loadMainModule(t);
   const killSignals = [];

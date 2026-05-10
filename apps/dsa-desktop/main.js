@@ -422,6 +422,11 @@ function readUpdateBackupManifest() {
   }
 }
 
+function writeUpdateBackupManifest(manifest) {
+  ensureDirectory(resolveUpdateBackupRoot());
+  fs.writeFileSync(resolveUpdateBackupManifestPath(), JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
 function cleanupUpdateBackupRoot() {
   try {
     fs.rmSync(resolveUpdateBackupRoot(), { recursive: true, force: true });
@@ -460,19 +465,11 @@ function backupPackagedRuntimeState() {
     return;
   }
 
-  fs.writeFileSync(
-    resolveUpdateBackupManifestPath(),
-    JSON.stringify(
-      {
-        backedAt: new Date().toISOString(),
-        appVersion: resolveDesktopVersion(),
-        files: backedUpFiles,
-      },
-      null,
-      2
-    ),
-    'utf-8'
-  );
+  writeUpdateBackupManifest({
+    backedAt: new Date().toISOString(),
+    appVersion: resolveDesktopVersion(),
+    files: backedUpFiles,
+  });
 }
 
 function restorePackagedRuntimeStateFromBackup() {
@@ -496,6 +493,7 @@ function restorePackagedRuntimeStateFromBackup() {
   result.backupRoot = backupRoot;
   const runtimeEntries = resolveRuntimeFileEntries(appDir);
   const relativeFiles = normalizeBackupFileList(manifest);
+  const failedRelativeFiles = [];
 
   try {
     relativeFiles.forEach((relativePath) => {
@@ -511,12 +509,23 @@ function restorePackagedRuntimeStateFromBackup() {
         result.restored.push(relativePath);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        failedRelativeFiles.push(relativePath);
         result.failed.push(`${relativePath} (${message})`);
       }
     });
   } finally {
     if (!result.failed.length) {
       cleanupUpdateBackupRoot();
+    } else {
+      try {
+        writeUpdateBackupManifest({
+          ...manifest,
+          files: failedRelativeFiles,
+          lastRestoreFailedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        logLine(`[update] failed to rewrite pending restore manifest: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   }
 
