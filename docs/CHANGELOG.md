@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] Windows NSIS 自动更新在安装尝试未切换桌面端版本时跳过自动恢复，避免失败或取消安装后误回滚用户运行时数据。
 - [修复] 同版本启动时清理未生效的自动更新备份目录，避免后续升级误将旧 `.dsa-desktop-update-backup/runtime-state.json` 的运行时文件再次恢复到新版本。
 - [修复] 清理提交中的临时探测文件（`node_modules_exists.txt` 与 `node_modules_ls_check.txt`），避免污染桌面/前端改动范围。
+- [修复] Web 首页大盘复盘结果改由主内容滚动区承载，避免 loading 切换到长结果后下方报告区域被截断或无法继续滚动。
 
 - [新功能] Web 系统设置页开放 `.env` 配置备份导入/导出，复用键级覆盖、配置版本冲突保护和重载链路；Web 端在 `ADMIN_AUTH_ENABLED=false` 时该入口为禁用状态。
 - [chore] 精简仓库根目录：将文档图片资源迁入 `docs/assets/`，将东方财富请求补丁迁入 `src/patches/`，并下移 CI 专用依赖文件与技能适配服务。
