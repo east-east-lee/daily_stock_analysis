@@ -863,6 +863,12 @@ System defaults to AkShare (free), also supports other data sources:
 
 ## Advanced Features
 
+### AI Suggestions / Decision Signals
+
+`AI Suggestions / Decision Signals` is the planned structured layer for persisting operation advice, price plans, risk rationale, confidence, and evidence summaries from existing reports and Agent output as `DecisionSignal` / `AISuggestion` assets. P0 only defines the semantic contract; it does not add configuration, APIs, database tables, or Web pages, and it does not change existing report rendering, notifications, backtesting, alerts, or portfolio flows.
+
+The Chinese contract document [AI 建议池 / 决策信号语义契约](decision-signals.md) defines fields, action taxonomy, market phases, horizon, `plan_quality`, lifecycle status, redaction boundaries, and rollback notes. Future implementations must keep signal extraction non-blocking for the main analysis flow, and missing entry, stop-loss, or target prices must lower `plan_quality` instead of inventing a price plan.
+
 ### Hong Kong Stock Support
 
 Use `hk` prefix for HK stock codes:
