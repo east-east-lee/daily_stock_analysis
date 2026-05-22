@@ -12,7 +12,7 @@ const getVendorPackage = (id: string): string | undefined => {
   if (!match || match.length < 2) {
     return undefined;
   }
-  return match[1];
+  return match[1].replace(/\\/g, '/');
 }
 
 // https://vite.dev/config/
