@@ -238,8 +238,10 @@ class NotificationService(
 
         # 检测所有已配置的渠道
         self._available_channels = self._detect_all_channels()
-        if self._has_context_channel():
+        if self._extract_dingtalk_session_webhook() is not None:
             self._context_channels.append("钉钉会话")
+        if self._extract_feishu_reply_info() is not None:
+            self._context_channels.append("飞书会话")
 
         if not self._available_channels and not self._context_channels:
             logger.warning("未配置有效的通知渠道，将不发送推送通知")
@@ -505,6 +507,25 @@ class NotificationService(
             self._extract_dingtalk_session_webhook() is not None
             or self._extract_feishu_reply_info() is not None
         )
+
+    def _source_platform(self) -> str:
+        """Return normalized platform from the source bot message."""
+        platform = getattr(self._source_message, "platform", "")
+        if hasattr(platform, "value"):
+            platform = platform.value
+        return str(platform or "").lower()
+
+    def _is_feishu_context_reply_only(self) -> bool:
+        """Feishu Stream command responses should not fan out to static webhooks."""
+        return (
+            isinstance(self._source_message, BotMessage)
+            and self._source_platform() == "feishu"
+            and self._extract_feishu_reply_info() is not None
+        )
+
+    def should_broadcast_static_channels(self) -> bool:
+        """Whether static notification channels should receive this dispatch."""
+        return not self._is_feishu_context_reply_only()
 
     def _extract_dingtalk_session_webhook(self) -> Optional[str]:
         """从来源消息中提取钉钉会话 Webhook（用于 Stream 模式回复）"""
@@ -2107,6 +2128,30 @@ class NotificationService(
             Structured dispatch diagnostics.
         """
         context_success = self.send_to_context(content)
+        if not self.should_broadcast_static_channels():
+            if context_success:
+                logger.info("已通过飞书消息上下文完成推送，跳过静态通知渠道")
+                return NotificationDispatchResult(
+                    dispatched=True,
+                    success=True,
+                    status="sent",
+                    channel_results=[ChannelAttemptResult(channel="__context__", success=True)],
+                )
+            logger.warning("飞书消息上下文推送失败，已跳过静态通知渠道")
+            return NotificationDispatchResult(
+                dispatched=True,
+                success=False,
+                status="all_failed",
+                channel_results=[
+                    ChannelAttemptResult(
+                        channel="__context__",
+                        success=False,
+                        error_code="send_failed",
+                        retryable=True,
+                    )
+                ],
+                message="feishu context delivery failed; static channels skipped",
+            )
 
         if not self._available_channels:
             if context_success:

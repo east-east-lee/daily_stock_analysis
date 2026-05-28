@@ -33,6 +33,7 @@ from src.config import Config
 from src.notification import NotificationService, NotificationChannel
 from src.notification_noise import reset_notification_noise_state
 from src.analyzer import AnalysisResult
+from bot.models import BotMessage, ChatType
 import requests
 
 
@@ -47,6 +48,18 @@ def _make_response(status_code: int, json: Optional[dict] = None) -> requests.Re
     if json:
         response.json = lambda: json
     return response
+
+
+def _make_feishu_message() -> BotMessage:
+    return BotMessage(
+        platform="feishu",
+        message_id="msg-1",
+        user_id="user-1",
+        user_name="tester",
+        chat_id="chat-1",
+        chat_type=ChatType.GROUP,
+        content="/a 600519",
+    )
 
 
 class TestNotificationServiceSendToMethods(unittest.TestCase):
@@ -274,6 +287,65 @@ class TestNotificationServiceSendToMethods(unittest.TestCase):
         self.assertTrue(ok)
         mock_context.assert_called_once_with("content")
         mock_custom.assert_not_called()
+
+    @mock.patch("src.notification.get_config")
+    def test_feishu_context_response_skips_static_webhook(self, mock_get_config: mock.MagicMock):
+        cfg = _make_config(
+            feishu_webhook_url="https://open.feishu.cn/open-apis/bot/v2/hook/test-token",
+            feishu_app_id="cli_test",
+            feishu_app_secret="app-secret",
+        )
+        mock_get_config.return_value = cfg
+        service = NotificationService(source_message=_make_feishu_message())
+
+        with mock.patch.object(service, "_send_feishu_stream_reply", return_value=True) as mock_reply, \
+             mock.patch.object(service, "send_to_feishu", return_value=True) as mock_webhook:
+            result = service.send_with_results("content", route_type="report")
+
+        self.assertTrue(result.dispatched)
+        self.assertTrue(result.success)
+        self.assertEqual(result.status, "sent")
+        self.assertEqual([item.channel for item in result.channel_results], ["__context__"])
+        mock_reply.assert_called_once_with("chat-1", "content")
+        mock_webhook.assert_not_called()
+
+    @mock.patch("src.notification.get_config")
+    def test_feishu_context_failure_does_not_fallback_to_static_webhook(self, mock_get_config: mock.MagicMock):
+        cfg = _make_config(
+            feishu_webhook_url="https://open.feishu.cn/open-apis/bot/v2/hook/test-token",
+            feishu_app_id="cli_test",
+            feishu_app_secret="app-secret",
+        )
+        mock_get_config.return_value = cfg
+        service = NotificationService(source_message=_make_feishu_message())
+
+        with mock.patch.object(service, "_send_feishu_stream_reply", return_value=False), \
+             mock.patch.object(service, "send_to_feishu", return_value=True) as mock_webhook:
+            result = service.send_with_results("content", route_type="report")
+
+        self.assertTrue(result.dispatched)
+        self.assertFalse(result.success)
+        self.assertEqual(result.status, "all_failed")
+        self.assertEqual([item.channel for item in result.channel_results], ["__context__"])
+        mock_webhook.assert_not_called()
+
+    @mock.patch("src.notification.get_config")
+    def test_feishu_webhook_still_sends_without_source_context(self, mock_get_config: mock.MagicMock):
+        cfg = _make_config(
+            feishu_webhook_url="https://open.feishu.cn/open-apis/bot/v2/hook/test-token",
+            feishu_app_id="cli_test",
+            feishu_app_secret="app-secret",
+        )
+        mock_get_config.return_value = cfg
+        service = NotificationService()
+
+        with mock.patch.object(service, "send_to_feishu", return_value=True) as mock_webhook:
+            result = service.send_with_results("content", route_type="report")
+
+        self.assertTrue(result.dispatched)
+        self.assertTrue(result.success)
+        self.assertEqual([item.channel for item in result.channel_results], ["feishu"])
+        mock_webhook.assert_called_once_with("content")
 
     @mock.patch("src.notification.get_config")
     def test_send_dedup_suppresses_static_channels_after_success(self, mock_get_config: mock.MagicMock):
