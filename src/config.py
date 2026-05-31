@@ -1789,7 +1789,11 @@ class Config:
             ),
             portfolio_fx_update_enabled=os.getenv('PORTFOLIO_FX_UPDATE_ENABLED', 'true').lower() == 'true',
             alphasift_enabled=parse_env_bool(os.getenv('ALPHASIFT_ENABLED'), default=False),
-            alphasift_install_spec=os.getenv('ALPHASIFT_INSTALL_SPEC', DEFAULT_ALPHASIFT_INSTALL_SPEC).strip() or DEFAULT_ALPHASIFT_INSTALL_SPEC,
+            alphasift_install_spec=(
+                DEFAULT_ALPHASIFT_INSTALL_SPEC
+                if os.getenv('ALPHASIFT_INSTALL_SPEC') is None
+                else os.getenv('ALPHASIFT_INSTALL_SPEC', '').strip()
+            ),
         )
     
     @classmethod
