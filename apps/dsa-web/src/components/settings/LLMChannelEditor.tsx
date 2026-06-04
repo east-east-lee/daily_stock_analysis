@@ -1283,7 +1283,9 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
       }
       const channelName = match[1];
       for (const channelKey of parseChannelFieldKeysFromName(channelName)) {
-        sourceByKey.set(channelKey, false);
+        if (!sourceByKey.has(channelKey)) {
+          sourceByKey.set(channelKey, false);
+        }
       }
     }
     return sourceByKey;
