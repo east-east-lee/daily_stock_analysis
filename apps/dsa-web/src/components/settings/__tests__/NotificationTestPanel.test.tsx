@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { useUiLanguage, UI_LANGUAGE_STORAGE_KEY, UiLanguageProvider } from '../../../contexts/UiLanguageContext';
+import { useUiLanguage, UiLanguageProvider } from '../../../contexts/UiLanguageContext';
+import { UI_LANGUAGE_STORAGE_KEY } from '../../../utils/uiLanguage';
 import { NotificationTestPanel } from '../NotificationTestPanel';
 
 const testNotificationChannel = vi.hoisted(() => vi.fn());

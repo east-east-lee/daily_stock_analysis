@@ -37,7 +37,7 @@ export const StockBar: React.FC<StockBarProps> = ({
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectAllId = useId();
 
-  const deletableItems = items.filter((item) => !isMarketReview(item.stockCode));
+  const deletableItems = items;
   const selectedCount = [...selectedCodes].filter((code) => deletableItems.some((item) => item.stockCode === code)).length;
   const allVisibleSelected = deletableItems.length > 0 && selectedCount === deletableItems.length;
   const someVisibleSelected = selectedCount > 0 && !allVisibleSelected;
@@ -159,7 +159,7 @@ export const StockBar: React.FC<StockBarProps> = ({
 
               return (
                 <div key={`${code}-${item.id}`} className="flex items-start gap-2 group">
-                  {!isMarket && onDeleteStock && (
+                  {onDeleteStock && (
                     <div className="pt-5">
                       <input
                         type="checkbox"
@@ -174,7 +174,7 @@ export const StockBar: React.FC<StockBarProps> = ({
                     item={item}
                     isViewing={isSelected}
                     onClick={onItemClick}
-                    onDelete={isMarket ? undefined : onDeleteStock}
+                    onDelete={onDeleteStock}
                     isDeleting={isDeleting}
                     isMarketReview={isMarket}
                   />

@@ -1,11 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
+  UiLanguageProvider,
+} from '../UiLanguageContext';
+import {
+  getRuntimeInitialLanguage,
   persistUiLanguage,
   resolveInitialUiLanguage,
   UI_LANGUAGE_STORAGE_KEY,
-  UiLanguageProvider,
-} from '../UiLanguageContext';
+} from '../../utils/uiLanguage';
 import { UiLanguageToggle } from '../../components/i18n/UiLanguageToggle';
 
 function createStorage(value: string | null): Storage {
@@ -79,6 +82,24 @@ describe('UiLanguageContext', () => {
     };
 
     expect(() => persistUiLanguage(throwingStorage, 'en')).not.toThrow();
+  });
+
+  it('falls back safely when the localStorage accessor itself throws', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get: () => {
+        throw new Error('localStorage disabled');
+      },
+    });
+
+    try {
+      expect(getRuntimeInitialLanguage()).toBe('en');
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(window, 'localStorage', originalDescriptor);
+      }
+    }
   });
 
   it('switches UI language immediately and persists the explicit choice', () => {
