@@ -428,6 +428,7 @@ class DecisionSignalService:
             created_at=created_at,
             horizon=horizon,
             market=str(payload.get("market") or ""),
+            metadata=payload.get("metadata"),
         )
         if expires_at is None:
             return
@@ -475,14 +476,15 @@ class DecisionSignalService:
         created_at: datetime,
         horizon: Optional[str],
         market: str,
+        metadata: Any,
     ) -> Optional[datetime]:
         base = to_utc_naive_datetime(created_at)
-        if horizon == "intraday":
-            return base + timedelta(hours=cls._intraday_fallback_hours(market))
-        days = cls._horizon_days(horizon)
-        if days is None:
-            return None
-        return base + timedelta(days=days)
+        return cls._expires_at_from_base(
+            horizon=horizon,
+            market=market,
+            metadata=metadata,
+            base=base,
+        )
 
     @staticmethod
     def _history_int(*values: Any, default: int) -> int:
@@ -597,21 +599,36 @@ class DecisionSignalService:
         market: str,
         metadata: Any,
     ) -> Optional[datetime]:
-        now = utc_naive_now()
+        return cls._expires_at_from_base(
+            horizon=horizon,
+            market=market,
+            metadata=metadata,
+            base=utc_naive_now(),
+        )
+
+    @classmethod
+    def _expires_at_from_base(
+        cls,
+        *,
+        horizon: Optional[str],
+        market: str,
+        metadata: Any,
+        base: datetime,
+    ) -> Optional[datetime]:
         if horizon == "intraday":
             minutes_to_close = cls._metadata_minutes(metadata, "minutes_to_close")
             if minutes_to_close is not None:
-                return now + timedelta(minutes=minutes_to_close)
+                return base + timedelta(minutes=minutes_to_close)
             minutes_to_open = cls._metadata_minutes(metadata, "minutes_to_open")
             if minutes_to_open is not None:
                 fallback_minutes = int(cls._intraday_fallback_hours(market) * 60)
-                return now + timedelta(minutes=minutes_to_open + fallback_minutes)
-            return now + timedelta(hours=cls._intraday_fallback_hours(market))
+                return base + timedelta(minutes=minutes_to_open + fallback_minutes)
+            return base + timedelta(hours=cls._intraday_fallback_hours(market))
 
         days = cls._horizon_days(horizon)
         if days is None:
             return None
-        return now + timedelta(days=days)
+        return base + timedelta(days=days)
 
     @staticmethod
     def _intraday_fallback_hours(market: str) -> float:
