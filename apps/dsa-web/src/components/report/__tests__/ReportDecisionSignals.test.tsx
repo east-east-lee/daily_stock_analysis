@@ -203,6 +203,25 @@ describe('ReportDecisionSignals', () => {
     expect(within(dialog).getAllByText(/正在加载/).length).toBeGreaterThanOrEqual(2);
   });
 
+  it('keeps loaded sidecar data when selecting the current signal again', async () => {
+    renderComponent({ recordId: 5, reportType: 'detailed' });
+
+    fireEvent.click(await screen.findByRole('button', { name: '查看 腾讯控股 AI 建议详情' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('命中')).toBeInTheDocument();
+    expect(within(dialog).getByText('有用')).toBeInTheDocument();
+    expect(decisionSignalsApi.getSignalOutcomes).toHaveBeenCalledTimes(1);
+    expect(decisionSignalsApi.getFeedback).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '查看 腾讯控股 AI 建议详情' }));
+
+    expect(within(dialog).getByText('命中')).toBeInTheDocument();
+    expect(within(dialog).getByText('有用')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/正在加载/)).not.toBeInTheDocument();
+    expect(decisionSignalsApi.getSignalOutcomes).toHaveBeenCalledTimes(1);
+    expect(decisionSignalsApi.getFeedback).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores stale sidecar responses after selecting another report signal', async () => {
     const firstOutcomes = deferredPromise<{
       items: DecisionSignalOutcomeItem[];

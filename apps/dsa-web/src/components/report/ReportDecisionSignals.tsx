@@ -193,10 +193,11 @@ export const ReportDecisionSignals: React.FC<ReportDecisionSignalsProps> = ({
   }, [selected]);
 
   const handleSelectSignal = useCallback((item: DecisionSignalItem) => {
+    if (selected?.id === item.id) return;
     detailRequestIdRef.current += 1;
     setSelected(item);
     setDetailSidecar(createDetailSidecarState(item.id, true));
-  }, []);
+  }, [selected?.id]);
 
   const handleCloseDetails = useCallback(() => {
     detailRequestIdRef.current += 1;
