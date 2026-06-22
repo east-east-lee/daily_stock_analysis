@@ -435,6 +435,41 @@ class BacktestServiceTestCase(unittest.TestCase):
         self.assertIn("BJ920748", bj_variants)
         self.assertIn("920748.BJ", bj_variants)
 
+    def test_build_market_code_variants_rejects_hk_suffix_with_6_digit_base(self) -> None:
+        invalid_variants = BacktestRepository._build_market_code_variants("600519.HK", "600519.HK")
+        self.assertNotIn("600519", invalid_variants)
+        self.assertNotIn("600519.HK", invalid_variants)
+
+        valid_variants = BacktestRepository._build_market_code_variants("1810.HK", "01810")
+        self.assertIn("01810.HK", valid_variants)
+        self.assertIn("HK01810", valid_variants)
+
+    def test_get_candidates_does_not_match_invalid_a_share_hk_cross_input(self) -> None:
+        repo = BacktestRepository(self.db)
+        matches = repo.get_candidates(
+            code="600519.HK",
+            min_age_days=0,
+            limit=10,
+            eval_window_days=3,
+            engine_version="v1",
+            force=True,
+        )
+
+        self.assertEqual(len(matches), 0)
+
+    def test_run_backtest_rejects_invalid_market_suffix_length_input(self) -> None:
+        service = BacktestService(self.db)
+        with self.assertRaisesRegex(ValueError, "非法股票代码格式"):
+            service.run_backtest(
+                code="600519.HK",
+                force=False,
+                eval_window_days=3,
+                min_age_days=0,
+                analysis_date_from=date(2024, 1, 1),
+                analysis_date_to=date(2024, 1, 1),
+                limit=10,
+            )
+
     def test_run_backtest_bare_code_query_matches_dotted_history_records(self) -> None:
         self._seed_analysis(
             query_id="q_match_dot",

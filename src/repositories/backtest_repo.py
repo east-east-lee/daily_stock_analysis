@@ -522,13 +522,26 @@ class BacktestRepository:
                 variants.append(f"{normalized_upper}.SS")
                 variants.append(f"SS.{normalized_upper}")
 
-        if normalized_upper.startswith("HK") and len(normalized_upper) > 2 and normalized_upper[2:].isdigit():
+        if (
+            normalized_upper.startswith("HK")
+            and len(normalized_upper) > 2
+            and normalized_upper[2:].isdigit()
+            and len(normalized_upper[2:]) <= 5
+        ):
             variants.extend(BacktestRepository._build_hk_market_variants(normalized_upper[2:]))
 
-        if raw_code_upper.startswith("HK.") and raw_code_upper[3:].isdigit():
+        if (
+            raw_code_upper.startswith("HK.")
+            and raw_code_upper[3:].isdigit()
+            and len(raw_code_upper[3:]) <= 5
+        ):
             variants.extend(BacktestRepository._build_hk_market_variants(raw_code_upper[3:]))
 
-        if raw_code_upper.endswith(".HK"):
+        if (
+            raw_code_upper.endswith(".HK")
+            and raw_code_upper[:-3].isdigit()
+            and 1 <= len(raw_code_upper[:-3]) <= 5
+        ):
             hk_digits = raw_code_upper.rsplit(".", 1)[0]
             variants.extend(BacktestRepository._build_hk_market_variants(hk_digits))
 

@@ -19,6 +19,7 @@ from src.repositories.stock_repo import StockRepository
 from src.schemas.decision_action import build_action_fields
 from src.storage import BacktestResult, BacktestSummary, DatabaseManager
 from src.utils.data_processing import parse_json_field
+from src.services.stock_code_utils import normalize_code as normalize_backtest_code
 
 logger = logging.getLogger(__name__)
 
@@ -432,8 +433,13 @@ class BacktestService:
 
     @staticmethod
     def _normalize_code(code: Optional[str]) -> Optional[str]:
-        normalized = canonical_stock_code(str(code).strip()) if code else None
-        return normalized or None
+        if not code:
+            return None
+
+        normalized = normalize_backtest_code(str(code).strip())
+        if normalized is None:
+            raise ValueError(f"非法股票代码格式: {code}")
+        return normalized
 
     @staticmethod
     def _normalize_summary_code(code: Optional[str]) -> Optional[str]:
@@ -447,8 +453,10 @@ class BacktestService:
         if not code:
             return None
 
-        normalized = normalize_stock_code(str(code).strip())
-        return normalized or canonical_stock_code(code)
+        normalized = normalize_backtest_code(str(code).strip())
+        if normalized is None:
+            raise ValueError(f"非法股票代码格式: {code}")
+        return normalized
 
     @staticmethod
     def _ordered_candidate_codes(
